@@ -103,10 +103,18 @@ public class MainActivity extends AppCompatActivity {
     private long receiveKbps;
     // 发送数据 buffer
     private byte[] buffer;
+    // 校验 buffer 的字段
+    private String verifyStr = "HI";
+    // 校验顺序
+    private int verifyIndex = 0;
+    // 乱序的数量
+    private int disorders = 0;
+
     // 发送的包数量
     private long sendPacketCount = 0;
     // 接收的包数量
     private long receivePacketCount = 0;
+    // 延迟相关变量
     private long delay, delayLow, delayHigh, delaySum;
 
     @Override
@@ -176,6 +184,8 @@ public class MainActivity extends AppCompatActivity {
                 for (int i = 0; i < bufferSize; i++) {
                     buffer[i] = 0;
                 }
+                byte[] verifyBytes = verifyStr.getBytes();
+                System.arraycopy(verifyBytes, 0, buffer, 8, verifyBytes.length);
             }
 
             @Override
@@ -228,6 +238,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * 校验接收到的数据
+     */
+    private boolean verifyReceiveData(byte[] receiveData) {
+        String receiveVerify = new String(receiveData, 8, 2);
+        if (!receiveVerify.equals(verifyStr)) {
+            return false;
+        }
+        byte[] orderBytes = new byte[4];
+        System.arraycopy(receiveData, 10, orderBytes, 0, orderBytes.length);
+        int orderNum = Util.bytesToInt(orderBytes);
+        Log.i(TAG, "收到的序号 " + orderNum);
+        if (verifyIndex > orderNum) {
+            disorders++;
+            return false;
+        }
+        verifyIndex = orderNum;
+        return true;
+    }
+
+    /**
      * 接收 UDP 数据包
      */
     private void receiveUDPPacket() {
@@ -241,6 +271,10 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         // 接收服务端消息
                         socket.receive(receivePacket);
+                        if (!verifyReceiveData(receiveData)) {
+                            return;
+                        }
+
                         receivePacketCount++;
                         long t = Util.bytesToLong(receiveData);
                         long spend = (Util.microTime() - t) / 1000;
@@ -262,8 +296,25 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    /**
+     * 计算需要的时间，用来和实际使用时间比较
+     */
     private long computeSpend() {
         return (long) (bufferSize * sendPacketCount * 8 / (float) (kbps) * 1000);
+    }
+
+    /**
+     * 包装数据，主要是将时间戳以及包序号包装进去
+     */
+    private void wrapBuffer() {
+        // 加入时间
+        byte[] timeBytes = Util.longToBytes(Util.microTime());
+        System.arraycopy(timeBytes, 0, buffer, 0, timeBytes.length);
+
+        // 加入序号
+        sendPacketCount++;
+        byte[] orderByte = Util.intToBytes((int) sendPacketCount);
+        System.arraycopy(orderByte, 0, buffer, 10, orderByte.length);
     }
 
     /**
@@ -276,26 +327,21 @@ public class MainActivity extends AppCompatActivity {
                 isSending = true;
                 sendTime = Util.microTime();
                 receiveTime = Util.microTime();
-                long oldTime;
-                byte[] timeBytes;
                 // 创建用于发送消息的DatagramPacket
                 InetSocketAddress address = new InetSocketAddress(host, port);
                 DatagramPacket sendPacket = new DatagramPacket(buffer, buffer.length, address);
                 while (isRunning && isSending) {
                     try {
-                        oldTime = Util.microTime();
-                        timeBytes = Util.longToBytes(oldTime);
-                        System.arraycopy(timeBytes, 0, buffer, 0, timeBytes.length);
+                        wrapBuffer();
                         sendPacket.setData(buffer);
                         // 向服务端发送消息
                         socket.send(sendPacket);
-                        sendPacketCount++;
                         sendKbps = (long) (bufferSize * sendPacketCount / ((float) (Util.microTime() - sendTime) / 1000 / 1000) * 8);
 
                         // 计算应该耗费时间，以及实际耗费时间
                         long shouldSpend = computeSpend();
                         long spend = Util.microTime() - sendTime;
-                        Log.i(TAG, "计算 " + shouldSpend + ", 实际 " + spend);
+                        //Log.i(TAG, "计算 " + shouldSpend + ", 实际 " + spend);
                         if (spend < shouldSpend) {
                             // 这里不适用 Thread.sleep() 而使用 TimeUnit 可以使睡眠控制到微秒级别
                             TimeUnit.MICROSECONDS.sleep(shouldSpend - spend);
@@ -333,11 +379,11 @@ public class MainActivity extends AppCompatActivity {
         // 丢包
         long lostCount = sendPacketCount - receivePacketCount;
         float lostRate = lostCount / (float) sendPacketCount * 100;
-        String lostStr = String.format("[发/丢: %d/%d][丢包率:%.2f%%]", sendPacketCount, lostCount, lostRate);
+        String lostStr = String.format("[发/丢/乱: %d/%d/%d][丢包率:%.2f%%]", sendPacketCount, lostCount, disorders, lostRate);
         lostView.setText(lostStr);
 
         // 延迟
-        String delayStr = String.format("[低/高: %d/%d][平均:%d]", delayLow, delayHigh, delay);
+        String delayStr = String.format("[小/大: %d/%d][平均:%d]", delayLow, delayHigh, delay);
         delayView.setText(delayStr);
     }
 
@@ -378,6 +424,9 @@ public class MainActivity extends AppCompatActivity {
 
         showStatistics();
 
+        verifyIndex = 0;
+        disorders = 0;
+        
         sendPacketCount = 0;
         receivePacketCount = 0;
 
