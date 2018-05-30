@@ -30,7 +30,7 @@ public class UDPSocketServer {
                 byte[] orderBytes = new byte[4];
                 System.arraycopy(receiveData, 10, orderBytes, 0, orderBytes.length);
                 int orderNum = Util.bytesToInt(orderBytes);
-                System.out.println(String.format("收到 时间戳: %d, 验证: %s, 序号: %d", time, verifyStr, orderNum));
+                //System.out.println(String.format("收到 时间戳: %d, 验证: %s, 序号: %d", time, verifyStr, orderNum));
 
                 //System.out.println("收到时间戳 " + Util.bytesToLong(receiveData));
                 //System.out.println("收到客户端数据:" + new String(receiveData, 0, receivePacket.getLength()));

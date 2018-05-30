@@ -1,16 +1,21 @@
 package com.vmloft.develop.app.demo.vmudpping;
 
 import android.app.Activity;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -30,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
 
     private final String TAG = this.getClass().getSimpleName();
 
+    @BindView(R.id.toolbar) Toolbar toolbar;
     @BindView(R.id.widget_spinner_host) Spinner hostSpinner;
     @BindView(R.id.widget_spinner_mode) Spinner modeSpinner;
     @BindView(R.id.widget_spinner_buffer) Spinner bufferSpinner;
@@ -45,6 +51,8 @@ public class MainActivity extends AppCompatActivity {
     @BindView(R.id.text_buffer) TextView bufferView;
     @BindView(R.id.text_lost) TextView lostView;
     @BindView(R.id.text_delay) TextView delayView;
+
+    @BindView(R.id.layout_help) RelativeLayout helpLayout;
 
     private Activity activity;
 
@@ -133,6 +141,10 @@ public class MainActivity extends AppCompatActivity {
      * 初始化
      */
     private void init() {
+        toolbar.setTitle("UPD Ping 工具");
+        toolbar.setTitleTextColor(ContextCompat.getColor(activity, R.color.white));
+        setSupportActionBar(toolbar);
+
         // 服务器选择列表
         ArrayAdapter<String> hostAdapter = new ArrayAdapter<>(activity, android.R.layout.simple_spinner_dropdown_item, serverTitles);
         hostSpinner.setAdapter(hostAdapter);
@@ -224,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * 界面控件点击监听
      */
-    @OnClick({ R.id.btn_test })
+    @OnClick({ R.id.btn_test, R.id.layout_help })
     public void onClick(View v) {
         switch (v.getId()) {
         case R.id.btn_test:
@@ -233,6 +245,9 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 startUDPSocket();
             }
+            break;
+        case R.id.layout_help:
+            helpLayout.setVisibility(View.GONE);
             break;
         }
     }
@@ -248,7 +263,7 @@ public class MainActivity extends AppCompatActivity {
         byte[] orderBytes = new byte[4];
         System.arraycopy(receiveData, 10, orderBytes, 0, orderBytes.length);
         int orderNum = Util.bytesToInt(orderBytes);
-        Log.i(TAG, "收到的序号 " + orderNum);
+        //Log.i(TAG, "收到的序号 " + orderNum);
         if (verifyIndex > orderNum) {
             disorders++;
             return false;
@@ -286,7 +301,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                         delaySum += spend;
                         delay = delaySum / receivePacketCount;
-                        receiveKbps = (long) (bufferSize * sendPacketCount / ((float) (Util.microTime() - receiveTime) / 1000 / 1000) * 8);
+                        receiveKbps = (long) (bufferSize * receivePacketCount / ((float) (Util.microTime() - receiveTime) / 1000 / 1000) * 8);
                     } catch (IOException e) {
                         Log.e(TAG, "获取服务器数据出错 " + e.getMessage());
                         e.printStackTrace();
@@ -426,7 +441,7 @@ public class MainActivity extends AppCompatActivity {
 
         verifyIndex = 0;
         disorders = 0;
-        
+
         sendPacketCount = 0;
         receivePacketCount = 0;
 
@@ -504,6 +519,26 @@ public class MainActivity extends AppCompatActivity {
         if (port < 1024 || port > 65536) {
             Log.e(TAG, "端口必须是 1024~65536 之间的数字");
             return false;
+        }
+        return true;
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+        case R.id.action_help:
+            if (helpLayout.isShown()) {
+                helpLayout.setVisibility(View.GONE);
+            } else {
+                helpLayout.setVisibility(View.VISIBLE);
+            }
+            break;
         }
         return true;
     }
