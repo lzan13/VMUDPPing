@@ -287,21 +287,20 @@ public class MainActivity extends AppCompatActivity {
                         // 接收服务端消息
                         socket.receive(receivePacket);
                         if (!verifyReceiveData(receiveData)) {
-                            return;
+                            Log.e(TAG, "验证接收到的包错误");
+                        } else {
+                            receivePacketCount++;
+                            long t = Util.bytesToLong(receiveData);
+                            long spend = (Util.microTime() - t) / 1000;
+                            if (spend < delayLow || delayLow == 0) {
+                                delayLow = spend;
+                            }
+                            if (spend > delayHigh) {
+                                delayHigh = spend;
+                            }
+                            delaySum += spend;
+                            delay = delaySum / receivePacketCount;
                         }
-
-                        receivePacketCount++;
-                        long t = Util.bytesToLong(receiveData);
-                        long spend = (Util.microTime() - t) / 1000;
-                        if (spend < delayLow || delayLow == 0) {
-                            delayLow = spend;
-                        }
-                        if (spend > delayHigh) {
-                            delayHigh = spend;
-                        }
-                        delaySum += spend;
-                        delay = delaySum / receivePacketCount;
-                        receiveKbps = (long) (bufferSize * receivePacketCount / ((float) (Util.microTime() - receiveTime) / 1000 / 1000) * 8);
                     } catch (IOException e) {
                         Log.e(TAG, "获取服务器数据出错 " + e.getMessage());
                         e.printStackTrace();
@@ -384,6 +383,7 @@ public class MainActivity extends AppCompatActivity {
         stateView.setText(String.format("[%s]", isRunning ? "运行 " + spend + "s" : "空闲"));
 
         // 码率
+        receiveKbps = (long) (bufferSize * receivePacketCount / ((float) (Util.microTime() - receiveTime) / 1000 / 1000) * 8);
         String kbpsStr = String.format("[发/收: %d/%d][目标:%d]", sendKbps, receiveKbps, kbps * 1000);
         kbpsView.setText(kbpsStr);
 
