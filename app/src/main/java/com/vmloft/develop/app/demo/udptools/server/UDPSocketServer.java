@@ -1,6 +1,6 @@
-package com.vmloft.develop.app.demo.vmudpping.server;
+package com.vmloft.develop.app.demo.udptools.server;
 
-import com.vmloft.develop.app.demo.vmudpping.Util;
+import com.vmloft.develop.app.demo.udptools.Util;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketAddress;

@@ -1,15 +1,15 @@
-package com.vmloft.develop.app.demo.vmudpping;
+package com.vmloft.develop.app.demo.udptools;
 
 import android.app.Activity;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.Toolbar;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.Fragment;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -18,24 +18,21 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
-
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import butterknife.OnClick;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
-
-import butterknife.BindView;
-import butterknife.ButterKnife;
-import butterknife.OnClick;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
-public class MainActivity extends AppCompatActivity {
+public class PingFragment extends Fragment {
 
     private final String TAG = this.getClass().getSimpleName();
 
-    @BindView(R.id.toolbar) Toolbar toolbar;
     @BindView(R.id.widget_spinner_host) Spinner hostSpinner;
     @BindView(R.id.widget_spinner_mode) Spinner modeSpinner;
     @BindView(R.id.widget_spinner_buffer) Spinner bufferSpinner;
@@ -125,14 +122,26 @@ public class MainActivity extends AppCompatActivity {
     // 延迟相关变量
     private long delay, delayLow, delayHigh, delaySum;
 
+    public static PingFragment newInstance() {
+        PingFragment fragment = new PingFragment();
+        Bundle args = new Bundle();
+        fragment.setArguments(args);
+        return fragment;
+    }
+
+    @Nullable
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_ping, container, false);
+        ButterKnife.bind(this, view);
+        return view;
+    }
 
-        activity = this;
+    @Override
+    public void onActivityCreated(@Nullable Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
 
-        ButterKnife.bind(activity);
+        activity = getActivity();
 
         init();
     }
@@ -141,9 +150,6 @@ public class MainActivity extends AppCompatActivity {
      * 初始化
      */
     private void init() {
-        toolbar.setTitle("UPD Ping 工具");
-        toolbar.setTitleTextColor(ContextCompat.getColor(activity, R.color.white));
-        setSupportActionBar(toolbar);
 
         // 服务器选择列表
         ArrayAdapter<String> hostAdapter = new ArrayAdapter<>(activity, android.R.layout.simple_spinner_dropdown_item, serverTitles);
@@ -412,7 +418,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     if (isRunning) {
-                        runOnUiThread(new Runnable() {
+                        activity.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
                                 showStatistics();
@@ -521,36 +527,5 @@ public class MainActivity extends AppCompatActivity {
             return false;
         }
         return true;
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-        case R.id.action_help:
-            if (helpLayout.isShown()) {
-                helpLayout.setVisibility(View.GONE);
-            } else {
-                helpLayout.setVisibility(View.VISIBLE);
-            }
-            break;
-        }
-        return true;
-    }
-
-    /**
-     * 拦截返回键，断开链接再关闭界面
-     */
-    @Override
-    public void onBackPressed() {
-        if (isRunning) {
-            stopUDPSocket();
-        }
-        finish();
     }
 }
